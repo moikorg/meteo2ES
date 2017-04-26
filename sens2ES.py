@@ -51,6 +51,7 @@ while True:
             type = device['deviceid']
             m_dict['total_rain'] = measurement['r']
             m_dict['temperature'] = measurement['t1']
+            m_dict['sensor_type'] = 'rain'
             last_rain['id'] = id
             m_dict['additional_rain'] = m_dict['total_rain'] - last_rain['amount']
             last_rain['amount'] = m_dict['total_rain']
@@ -65,6 +66,7 @@ while True:
             m_dict['windgust'] = measurement['wg']
             m_dict['winddir'] = measurement['wd']
             last_wind['id'] = id
+            m_dict['sensor_type'] = 'wind'
         else :
             type = 'unknown'
 
