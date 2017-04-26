@@ -1,9 +1,10 @@
 import requests
 import datetime
-import json
 import time
+from pyelasticsearch import ElasticSearch
 
 
+es = ElasticSearch('http://docker.moik.org:9200/')
 
 url_sensor = "https://www.data199.com/api/pv1/device/lastmeasurement"
 
@@ -17,6 +18,7 @@ headers_sink = {
     'content-type': "application/json",
     'cache-control': "no-cache",
 }
+es_index='meteosensor'
 last_rain = {}
 last_wind = {}
 id = 0
@@ -26,7 +28,7 @@ last_wind['id']=0
 
 print("Starting")
 while True:
-    time.sleep(25)
+    time.sleep(60)
 
     response = requests.request("POST", url_sensor, data=payload_sensor, headers=headers_sensor).json()
 
@@ -38,13 +40,13 @@ while True:
         measurement = device['measurement']
         id = measurement['idx']
         m_dict = {}
-        m_dict['ts_measurement'] = datetime.datetime.fromtimestamp(measurement['ts']).isoformat()
+        m_dict['@timestamp'] = datetime.datetime.fromtimestamp(measurement['ts']).isoformat()
         m_dict['ts_lastseen'] = datetime.datetime.fromtimestamp(measurement['c']).isoformat()
         if 'r' in measurement:
             # rain sensor
             if last_rain['id'] == id:
-                print("rain: same ID, nothing to do")
-                print(m_dict)
+                #print("rain: same ID, nothing to do")
+                #print(m_dict)
                 continue
             type = device['deviceid']
             m_dict['total_rain'] = measurement['r']
@@ -55,8 +57,8 @@ while True:
         elif 'ws' in measurement:
             # wind sensor
             if last_wind['id'] == id:
-                print("wind: same ID, nothing to do")
-                print(m_dict)
+                #print("wind: same ID, nothing to do")
+                #print(m_dict)
                 continue
             type = device['deviceid']
             m_dict['windspeed'] = measurement['ws']
@@ -66,18 +68,7 @@ while True:
         else :
             type = 'unknown'
 
-        payload_sink = json.dumps(m_dict, ensure_ascii=False)
-        query = "http://docker.moik.org:9200/meteosensor/" + type + "/" + str(id)
-        print(query)
-        print(payload_sink)
-
-        # put to ES
-
-        response = requests.put(query, data=payload_sink, headers=headers_sink)
-    #    response = requests.get('http://docker.moik.org:9200/meteosensor/_search', headers=headers)
-        if response.ok == True:
-            print ("successfully inserted into ES")
-        else:
-            print ("not added to ES")
-
-    print ("finished.... sleeping")
+        es.index(es_index,type,m_dict,id=id,overwrite_existing=True,timestamp=m_dict['@timestamp'])
+        print('data pushed to ES ')
+        print(m_dict)
+    #print("finished.... sleeping")
